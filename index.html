@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI GoGo</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#e6e9ee;
+  --ink:#181d26;
+  --muted:#5a6475;
+  --panel:#f5f7fa;
+  --line:#c5ccd8;
+  --accent:#3550c8;
+  --wood:#dbb463;
+  --grid:#3d2b12;
+  --black-stone:#1a1b1f;
+  --white-stone:#f5f2e9;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#141820;
+    --ink:#e7ebf2;
+    --muted:#96a0b3;
+    --panel:#1c222d;
+    --line:#2f3847;
+    --accent:#8ea2ff;
+    --wood:#cfa753;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#141820;
+  --ink:#e7ebf2;
+  --muted:#96a0b3;
+  --panel:#1c222d;
+  --line:#2f3847;
+  --accent:#8ea2ff;
+  --wood:#cfa753;
+}
+*,*::before,*::after{box-sizing:inherit;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+body{
+  margin:0;
+  background:var(--page);
+  color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.4;
+}
+main{max-width:600px;margin:0 auto;padding:20px 16px 32px;}
+h1{
+  font-size:clamp(2rem,9vw,3rem);
+  font-weight:800;
+  letter-spacing:-0.03em;
+  line-height:1;
+  margin:0 0 4px;
+}
+.sub{margin:0 0 14px;color:var(--muted);}
+
+.setup{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-bottom:12px;
+}
+.setup label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:.75rem;
+  color:var(--muted);
+  min-width:0;
+}
+select{
+  width:100%;
+  padding:8px;
+  font:inherit;
+  color:var(--ink);
+  background:var(--page);
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+@media (max-width:520px){
+  .setup{grid-template-columns:1fr 1fr;}
+}
+
+.players{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:12px;
+}
+.player{
+  background:var(--panel);
+  border:2px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  min-width:0;
+}
+.player.active{border-color:var(--accent);}
+.player-top{display:flex;align-items:center;gap:8px;}
+.player-top .stone{width:36px;height:36px;flex:none;font-size:18px;}
+.who{font-size:.8rem;color:var(--muted);}
+.tally{margin-left:auto;text-align:right;line-height:1.1;}
+.tally b{
+  display:block;
+  font-size:1.5rem;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+.tally span{font-size:.7rem;color:var(--muted);}
+.player select{margin-top:8px;}
+.img-row{display:flex;gap:10px;margin-top:6px;font-size:.8rem;}
+.img-row label,.img-row button{
+  color:var(--muted);
+  text-decoration:underline;
+  cursor:pointer;
+  background:none;
+  border:0;
+  padding:0;
+  font:inherit;
+}
+.img-row input{position:absolute;width:1px;height:1px;opacity:0;}
+.img-row label:focus-within{outline:2px solid var(--accent);outline-offset:2px;}
+
+#boardWrap{
+  position:relative;
+  width:100%;
+  aspect-ratio:1;
+  background:var(--wood);
+  border-radius:10px;
+  container-type:inline-size;
+  box-shadow:0 3px 10px rgba(0,0,0,.25);
+}
+#lines{position:absolute;inset:0;width:100%;height:100%;}
+#lines line{stroke:var(--grid);stroke-width:.03;}
+#lines circle{fill:var(--grid);}
+#board{
+  position:absolute;
+  inset:0;
+  display:grid;
+  grid-template-columns:repeat(var(--n),1fr);
+}
+.pt{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:none;
+  border:0;
+  padding:0;
+  min-width:0;
+  cursor:default;
+}
+.pt.open,.pt.mark{cursor:pointer;}
+.pt.open:hover::after{
+  content:"";
+  width:60%;
+  height:60%;
+  border-radius:50%;
+  background:rgba(0,0,0,.22);
+}
+.pt:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:50%;}
+.stone{
+  width:92%;
+  height:92%;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:calc(100cqw / var(--n) * .5);
+  line-height:1;
+  background-size:cover;
+  background-position:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.45);
+  user-select:none;
+}
+.stone.s1{background-color:var(--black-stone);color:#f5f2e9;border:1px solid #000;}
+.stone.s2{background-color:var(--white-stone);color:#181d26;border:1px solid #b9b3a2;}
+.stone.last{box-shadow:0 0 0 2px var(--wood),0 0 0 4px var(--accent);}
+.stone.dead{opacity:.35;}
+.terr{width:30%;height:30%;border-radius:2px;}
+.terr.t1{background:var(--black-stone);}
+.terr.t2{background:var(--white-stone);border:1px solid #8c8676;}
+
+#status{min-height:3.2em;margin:14px 0;font-size:1.05rem;font-weight:600;}
+#status small{display:block;font-weight:400;color:var(--muted);}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.actions button{
+  font:inherit;
+  font-weight:600;
+  padding:11px 18px;
+  color:var(--ink);
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  cursor:pointer;
+}
+.actions button:disabled{opacity:.45;cursor:default;}
+.actions #new{color:var(--page);background:var(--ink);border-color:var(--ink);margin-left:auto;}
+.actions button:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+</style>
+</head>
+<body>
+<main>
+  <h1>AI GoGo</h1>
+  <p class="sub">Go with an AI on every stone. Surround territory, capture what you cut off.</p>
+
+  <div class="setup">
+    <label>Mode
+      <select id="mode">
+        <option value="hot">Pass and play</option>
+        <option value="cpu" selected>You vs computer</option>
+      </select>
+    </label>
+    <label>Board
+      <select id="size">
+        <option value="9" selected>9 × 9</option>
+        <option value="13">13 × 13</option>
+        <option value="19">19 × 19</option>
+      </select>
+    </label>
+    <label>Computer plays
+      <select id="cpuSeat">
+        <option value="2" selected>White</option>
+        <option value="1">Black</option>
+      </select>
+    </label>
+    <label>Strength
+      <select id="strength">
+        <option value="quick">Quick</option>
+        <option value="solid" selected>Solid</option>
+        <option value="sharp">Sharp</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="players">
+    <section class="player" id="panel0">
+      <div class="player-top">
+        <div class="stone s1" id="mini0"></div>
+        <span class="who" id="who0">Black</span>
+        <span class="tally"><b id="num0">0</b><span id="lab0">captures</span></span>
+      </div>
+      <select id="sel0" aria-label="Black's AI"></select>
+      <div class="img-row">
+        <label>Use my own image<input type="file" accept="image/*" id="file0"></label>
+        <button type="button" id="clear0" hidden>Remove image</button>
+      </div>
+    </section>
+    <section class="player" id="panel1">
+      <div class="player-top">
+        <div class="stone s2" id="mini1"></div>
+        <span class="who" id="who1">White</span>
+        <span class="tally"><b id="num1">0</b><span id="lab1">captures</span></span>
+      </div>
+      <select id="sel1" aria-label="White's AI"></select>
+      <div class="img-row">
+        <label>Use my own image<input type="file" accept="image/*" id="file1"></label>
+        <button type="button" id="clear1" hidden>Remove image</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="boardWrap">
+    <svg id="lines" aria-hidden="true"></svg>
+    <div id="board" role="grid" aria-label="Go board"></div>
+  </div>
+  <div id="status" aria-live="polite"></div>
+  <div class="actions">
+    <button id="pass" type="button">Pass</button>
+    <button id="undo" type="button">Undo</button>
+    <button id="new" type="button">Start a new game</button>
+  </div>
+</main>
+
+<script>
+// ---------- Engine ----------
+const KOMI = 7.5;
+const BLACK = 1, WHITE = 2, EDGE = 3;
+const MAXP = 21 * 21;
+const mark = new Int32Array(MAXP);
+const gStones = new Int16Array(MAXP);
+const listBuf = new Int16Array(MAXP);
+let stamp = 0, gSize = 0, gLibs = 0;
+let N = 9, W = 11, D = [], DG = [], POINTS = [], STARS = [];
+
+// Game state. The board is a padded 1D array: 0 empty, 1 black, 2 white, 3 edge.
+let G = { b: null, ko: -1, turn: BLACK, passes: 0 };
+let caps = [0, 0];
+let last = -1;
+let seen = new Set();
+let undoStack = [];
+let dead = new Set();
+
+function setSize(n) {
+  N = n; W = n + 2;
+  D = [1, -1, W, -W];
+  DG = [W + 1, W - 1, -W + 1, -W - 1];
+  POINTS = [];
+  for (let r = 1; r <= n; r++) for (let c = 1; c <= n; c++) POINTS.push(r * W + c);
+  const e = n < 13 ? 3 : 4, f = n + 1 - e, m = (n + 1) / 2;
+  const at = (r, c) => r * W + c;
+  STARS = [at(e, e), at(e, f), at(f, e), at(f, f), at(m, m)];
+  if (n === 19) STARS.push(at(e, m), at(m, e), at(m, f), at(f, m));
+}
+
+function emptyBoard() {
+  const b = new Int8Array(W * W).fill(EDGE);
+  for (const p of POINTS) b[p] = 0;
+  return b;
+}
+
+// Collect the group at p into gStones and count its liberties.
+function scan(b, p) {
+  const color = b[p];
+  stamp++;
+  gStones[0] = p; mark[p] = stamp; gSize = 1; gLibs = 0;
+  let i = 0;
+  while (i < gSize) {
+    const q = gStones[i++];
+    for (let k = 0; k < 4; k++) {
+      const r = q + D[k];
+      if (mark[r] === stamp) continue;
+      const v = b[r];
+      if (v === 0) { mark[r] = stamp; gLibs++; }
+      else if (v === color) { mark[r] = stamp; gStones[gSize++] = r; }
+    }
+  }
+}
+
+// Place a stone on s.b. Returns stones captured, or -1 if the move is illegal
+// (occupied, simple ko, or suicide). Updates s.ko.
+function place(s, p, color) {
+  const b = s.b;
+  if (b[p] !== 0 || p === s.ko) return -1;
+  b[p] = color;
+  const opp = 3 - color;
+  let cap = 0, capAt = -1;
+  for (let k = 0; k < 4; k++) {
+    const q = p + D[k];
+    if (b[q] === opp) {
+      scan(b, q);
+      if (gLibs === 0) {
+        for (let i = 0; i < gSize; i++) b[gStones[i]] = 0;
+        cap += gSize;
+        capAt = gStones[0];
+      }
+    }
+  }
+  scan(b, p);
+  if (gLibs === 0) { b[p] = 0; return -1; }
+  s.ko = (cap === 1 && gSize === 1 && gLibs === 1) ? capAt : -1;
+  return cap;
+}
+
+function isEye(b, p, color) {
+  for (let k = 0; k < 4; k++) {
+    const v = b[p + D[k]];
+    if (v !== color && v !== EDGE) return false;
+  }
+  let bad = 0, edge = false;
+  for (let k = 0; k < 4; k++) {
+    const v = b[p + DG[k]];
+    if (v === EDGE) edge = true;
+    else if (v === 3 - color) bad++;
+  }
+  return edge ? bad === 0 : bad <= 1;
+}
+
+// Which colour, if any, solely borders this empty point.
+function pointOwner(b, p) {
+  let c = 0;
+  for (let k = 0; k < 4; k++) {
+    const v = b[p + D[k]];
+    if (v === BLACK || v === WHITE) {
+      if (c === 0) c = v;
+      else if (c !== v) return 0;
+    }
+  }
+  return c;
+}
+
+// Moves worth considering: empty points near existing stones that are not
+// the mover's own eyes, plus open star points.
+function candidates(b, color) {
+  stamp++;
+  let any = false;
+  for (const p of POINTS) {
+    if (b[p] !== BLACK && b[p] !== WHITE) continue;
+    any = true;
+    const r = (p / W) | 0, c = p % W;
+    for (let dr = -2; dr <= 2; dr++) {
+      const rr = r + dr;
+      if (rr < 1 || rr > N) continue;
+      for (let dc = -2; dc <= 2; dc++) {
+        const cc = c + dc;
+        if (cc < 1 || cc > N) continue;
+        mark[rr * W + cc] = stamp;
+      }
+    }
+  }
+  if (!any) return STARS.slice();
+  const out = [];
+  for (const p of POINTS) {
+    if (b[p] !== 0 || mark[p] !== stamp) continue;
+    if (!isEye(b, p, color)) out.push(p);
+  }
+  for (const p of STARS) {
+    if (b[p] === 0 && mark[p] !== stamp && !isEye(b, p, color)) out.push(p);
+  }
+  return out;
+}
+
+// Random playout to the end of the game. Returns the winner by area.
+function rollout(s) {
+  const b = s.b;
+  let color = s.turn, passes = 0, moves = 0;
+  const max = N * N * 3;
+  while (passes < 2 && moves < max) {
+    let cnt = 0;
+    for (let i = 0; i < POINTS.length; i++) {
+      const p = POINTS[i];
+      if (b[p] === 0) listBuf[cnt++] = p;
+    }
+    let played = false;
+    while (cnt > 0) {
+      const i = (Math.random() * cnt) | 0;
+      const p = listBuf[i];
+      listBuf[i] = listBuf[--cnt];
+      if (isEye(b, p, color)) continue;
+      if (place(s, p, color) >= 0) { played = true; break; }
+    }
+    if (played) passes = 0;
+    else { passes++; s.ko = -1; }
+    color = 3 - color;
+    moves++;
+  }
+  let diff = -KOMI;
+  for (let i = 0; i < POINTS.length; i++) {
+    const p = POINTS[i];
+    const o = b[p] || pointOwner(b, p);
+    if (o === BLACK) diff++;
+    else if (o === WHITE) diff--;
+  }
+  return diff > 0 ? BLACK : WHITE;
+}
+
+// Area score of the current game position, with marked dead stones removed.
+function finalScore() {
+  const b = G.b.slice();
+  for (const p of dead) b[p] = 0;
+  const owner = new Int8Array(W * W);
+  const done = new Uint8Array(W * W);
+  let black = 0, white = 0;
+  for (const p of POINTS) {
+    if (b[p]) {
+      owner[p] = b[p];
+      if (b[p] === BLACK) black++; else white++;
+      continue;
+    }
+    if (done[p]) continue;
+    const region = [p];
+    done[p] = 1;
+    let touch = 0;
+    for (let i = 0; i < region.length; i++) {
+      for (let k = 0; k < 4; k++) {
+        const q = region[i] + D[k], v = b[q];
+        if (v === 0) { if (!done[q]) { done[q] = 1; region.push(q); } }
+        else if (v !== EDGE) touch |= v;
+      }
+    }
+    if (touch === BLACK || touch === WHITE) {
+      for (const q of region) owner[q] = touch;
+      if (touch === BLACK) black += region.length; else white += region.length;
+    }
+  }
+  return { black, white: white + KOMI, owner };
+}
+
+function tryGameMove(p, color) {
+  if (G.b[p] !== 0) return { err: "occupied" };
+  if (p === G.ko) return { err: "ko" };
+  const s = { b: G.b.slice(), ko: G.ko };
+  const cap = place(s, p, color);
+  if (cap < 0) return { err: "suicide" };
+  const key = s.b.join("");
+  if (seen.has(key)) return { err: "repeat" };
+  return { s, cap, key };
+}
+
+function snapshot() {
+  const snap = { b: G.b.slice(), ko: G.ko, turn: G.turn, passes: G.passes, caps: caps.slice(), last, added: null };
+  undoStack.push(snap);
+  return snap;
+}
+
+function commitMove(p, res) {
+  const snap = snapshot();
+  snap.added = res.key;
+  caps[G.turn - 1] += res.cap;
+  G.b = res.s.b;
+  G.ko = res.s.ko;
+  G.passes = 0;
+  G.turn = 3 - G.turn;
+  seen.add(res.key);
+  last = p;
+}
+
+function commitPass() {
+  snapshot();
+  G.ko = -1;
+  G.passes++;
+  G.turn = 3 - G.turn;
+  last = -1;
+}
+
+function restore(snap) {
+  if (snap.added) seen.delete(snap.added);
+  G.b = snap.b; G.ko = snap.ko; G.turn = snap.turn; G.passes = snap.passes;
+  caps = snap.caps; last = snap.last;
+}
+
+function resetGame() {
+  G = { b: emptyBoard(), ko: -1, turn: BLACK, passes: 0 };
+  caps = [0, 0];
+  last = -1;
+  seen = new Set([G.b.join("")]);
+  undoStack = [];
+  dead = new Set();
+}
+
+// Quick strength: score each move by what it does right now.
+function quickMove() {
+  const color = G.turn, opp = 3 - color;
+  let best = -1, bestScore = -Infinity;
+  for (const p of candidates(G.b, color)) {
+    let save = 0;
+    for (let k = 0; k < 4; k++) {
+      const q = p + D[k];
+      if (G.b[q] === color) { scan(G.b, q); if (gLibs === 1) save += gSize; }
+    }
+    const res = tryGameMove(p, color);
+    if (res.err) continue;
+    const b = res.s.b;
+    scan(b, p);
+    const libs = gLibs, size = gSize;
+    let sc = res.cap * 10 + Math.random();
+    if (libs === 1) sc -= 6 + size * 4;
+    else sc += save * 8;
+    for (let k = 0; k < 4; k++) {
+      const q = p + D[k];
+      if (b[q] === opp) { scan(b, q); if (gLibs === 1) sc += 3 + gSize; }
+    }
+    const r = (p / W) | 0, c = p % W;
+    const edge = Math.min(r, c, N + 1 - r, N + 1 - c);
+    if (edge === 1) sc -= 2;
+    else if (edge === 3 || edge === 4) sc += 1;
+    if (sc > bestScore) { bestScore = sc; best = p; }
+  }
+  return best;
+}
+
+// Solid and Sharp: Monte Carlo tree search.
+function newNode(parent, p, color, s) {
+  return { parent, p, color, kids: [], untried: candidates(s.b, s.turn), w: 0, v: 0 };
+}
+
+function makeRoot() {
+  const root = newNode(null, -1, 3 - G.turn, G);
+  root.untried = root.untried.filter(p => !tryGameMove(p, G.turn).err);
+  return root;
+}
+
+function iterate(root) {
+  const s = { b: G.b.slice(), ko: G.ko, turn: G.turn };
+  let node = root;
+  while (node.untried.length === 0 && node.kids.length > 0) {
+    const logN = Math.log(node.v);
+    let pick = null, top = -Infinity;
+    for (const kid of node.kids) {
+      const u = kid.w / kid.v + 0.9 * Math.sqrt(logN / kid.v);
+      if (u > top) { top = u; pick = kid; }
+    }
+    node = pick;
+    if (node.p >= 0) place(s, node.p, node.color);
+    else s.ko = -1;
+    s.turn = 3 - node.color;
+  }
+  let grown = false;
+  while (node.untried.length > 0) {
+    const i = (Math.random() * node.untried.length) | 0;
+    const p = node.untried[i];
+    node.untried[i] = node.untried[node.untried.length - 1];
+    node.untried.pop();
+    const color = s.turn;
+    if (place(s, p, color) >= 0) {
+      s.turn = 3 - color;
+      const kid = newNode(node, p, color, s);
+      node.kids.push(kid);
+      node = kid;
+      grown = true;
+      break;
+    }
+  }
+  if (!grown && node.kids.length === 0) {
+    const color = s.turn;
+    s.ko = -1;
+    s.turn = 3 - color;
+    const kid = newNode(node, -1, color, s);
+    node.kids.push(kid);
+    node = kid;
+  }
+  const winner = rollout(s);
+  while (node) {
+    node.v++;
+    if (winner === node.color) node.w++;
+    node = node.parent;
+  }
+}
+
+function bestOf(root) {
+  let best = null;
+  for (const kid of root.kids) if (!best || kid.v > best.v) best = kid;
+  return best ? best.p : -1;
+}
+
+function aheadAsIs(color) {
+  const sc = finalScore();
+  return color === BLACK ? sc.black > sc.white : sc.white > sc.black;
+}
+
+// Guess which groups are dead by playing the position out many times and
+// seeing who ends up owning each stone.
+function estimateDead() {
+  const own = new Int32Array(W * W);
+  const t0 = performance.now();
+  let n = 0;
+  while (n < 400 && performance.now() - t0 < 300) {
+    const s = { b: G.b.slice(), ko: -1, turn: G.turn };
+    rollout(s);
+    for (const p of POINTS) {
+      const o = s.b[p] || pointOwner(s.b, p);
+      if (o === BLACK) own[p]++;
+      else if (o === WHITE) own[p]--;
+    }
+    n++;
+  }
+  const out = new Set();
+  const visited = new Uint8Array(W * W);
+  for (const p of POINTS) {
+    const v = G.b[p];
+    if (!v || visited[p]) continue;
+    scan(G.b, p);
+    let sum = 0;
+    for (let i = 0; i < gSize; i++) { visited[gStones[i]] = 1; sum += own[gStones[i]]; }
+    const avg = sum / (gSize * Math.max(n, 1));
+    const lost = v === BLACK ? avg < -0.3 : avg > 0.3;
+    if (lost) for (let i = 0; i < gSize; i++) out.add(gStones[i]);
+  }
+  return out;
+}
+
+// ---------- Interface ----------
+const AIS = {
+  OpenAI:  "◎",
+  Grok:    "✕",
+  Copilot: "◈",
+  Meta:    "∞",
+  Gemini:  "✦",
+  Claude:  "✳"
+};
+const COLS = "ABCDEFGHJKLMNOPQRST";
+const SIDE = ["Black", "White"];
+const players = [
+  { name: "OpenAI", img: null },
+  { name: "Grok", img: null }
+];
+let phase = "play";
+let thinking = false;
+let notice = "";
+let searchId = 0;
+let timer = 0;
+
+const $ = id => document.getElementById(id);
+const mode = () => $("mode").value;
+const cpuColor = () => mode() === "cpu" ? +$("cpuSeat").value : 0;
+const isCpuTurn = () => phase === "play" && G.turn === cpuColor();
+const nameOf = color => players[color - 1].name;
+
+function drawLines() {
+  const svg = $("lines");
+  svg.setAttribute("viewBox", "0 0 " + N + " " + N);
+  let h = "";
+  for (let i = 0; i < N; i++) {
+    const a = i + 0.5, z = N - 0.5;
+    h += '<line x1="0.5" y1="' + a + '" x2="' + z + '" y2="' + a + '"/>';
+    h += '<line x1="' + a + '" y1="0.5" x2="' + a + '" y2="' + z + '"/>';
+  }
+  for (const p of STARS) {
+    const r = ((p / W) | 0) - 1, c = (p % W) - 1;
+    h += '<circle cx="' + (c + 0.5) + '" cy="' + (r + 0.5) + '" r="0.09"/>';
+  }
+  svg.innerHTML = h;
+  $("boardWrap").style.setProperty("--n", N);
+}
+
+function startGame() {
+  searchId++;
+  clearTimeout(timer);
+  thinking = false;
+  setSize(+$("size").value);
+  resetGame();
+  phase = "play";
+  notice = "";
+  drawLines();
+  draw();
+  queueCpu();
+}
+
+function humanMove(p) {
+  if (phase !== "play" || thinking || isCpuTurn()) return;
+  const res = tryGameMove(p, G.turn);
+  if (res.err) {
+    notice = res.err === "ko" ? "That point is a ko. Play somewhere else first."
+      : res.err === "suicide" ? "A stone there would have no liberties."
+      : res.err === "repeat" ? "That move would repeat an earlier position."
+      : "";
+    draw();
+    return;
+  }
+  commitMove(p, res);
+  notice = "";
+  draw();
+  queueCpu();
+}
+
+function passTurn(byCpu) {
+  const who = nameOf(G.turn);
+  commitPass();
+  notice = who + " passed.";
+  if (G.passes >= 2) {
+    phase = "score";
+    dead = estimateDead();
+    notice = "";
+  }
+  draw();
+  if (!byCpu) queueCpu();
+}
+
+function undoMove() {
+  searchId++;
+  clearTimeout(timer);
+  thinking = false;
+  if (!undoStack.length) return;
+  phase = "play";
+  dead = new Set();
+  do { restore(undoStack.pop()); } while (undoStack.length && isCpuTurn());
+  notice = "";
+  draw();
+  queueCpu();
+}
+
+function toggleDead(p) {
+  scan(G.b, p);
+  const kill = !dead.has(p);
+  for (let i = 0; i < gSize; i++) {
+    if (kill) dead.add(gStones[i]); else dead.delete(gStones[i]);
+  }
+  draw();
+}
+
+function queueCpu() {
+  if (!isCpuTurn()) return;
+  thinking = true;
+  draw();
+  const id = ++searchId;
+  const strength = $("strength").value;
+  if (G.passes === 1 && aheadAsIs(G.turn)) {
+    timer = setTimeout(() => finishCpu(id, -1), 300);
+    return;
+  }
+  if (strength === "quick") {
+    timer = setTimeout(() => finishCpu(id, quickMove()), 300);
+    return;
+  }
+  const root = makeRoot();
+  const deadline = performance.now() + (strength === "sharp" ? 2500 : 700);
+  const slice = () => {
+    if (id !== searchId) return;
+    const end = Math.min(deadline, performance.now() + 25);
+    while (performance.now() < end) iterate(root);
+    if (performance.now() < deadline) timer = setTimeout(slice, 0);
+    else finishCpu(id, bestOf(root));
+  };
+  timer = setTimeout(slice, 30);
+}
+
+function finishCpu(id, p) {
+  if (id !== searchId) return;
+  thinking = false;
+  const res = p >= 0 ? tryGameMove(p, G.turn) : { err: "pass" };
+  if (res.err) { passTurn(true); return; }
+  commitMove(p, res);
+  notice = "";
+  draw();
+}
+
+function paintStone(el, color) {
+  const pl = players[color - 1];
+  if (pl.img) {
+    el.style.backgroundImage = "url(" + pl.img + ")";
+    el.textContent = "";
+  } else {
+    el.style.backgroundImage = "";
+    el.textContent = AIS[pl.name];
+  }
+}
+
+function draw() {
+  const el = $("board");
+  el.innerHTML = "";
+  const sc = phase === "score" ? finalScore() : null;
+  const canPlay = phase === "play" && !thinking && !isCpuTurn();
+  for (let r = 1; r <= N; r++) {
+    for (let c = 1; c <= N; c++) {
+      const p = r * W + c, v = G.b[p];
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "pt";
+      const where = COLS[c - 1] + (N + 1 - r);
+      if (v) {
+        const st = document.createElement("div");
+        st.className = "stone s" + v + (p === last ? " last" : "") + (dead.has(p) ? " dead" : "");
+        paintStone(st, v);
+        cell.appendChild(st);
+        cell.setAttribute("aria-label", where + ", " + nameOf(v) + " stone" + (dead.has(p) ? ", marked dead" : ""));
+        if (sc) { cell.classList.add("mark"); cell.onclick = () => toggleDead(p); }
+        else cell.tabIndex = -1;
+      } else {
+        cell.setAttribute("aria-label", where + ", empty");
+        if (sc && sc.owner[p]) {
+          const t = document.createElement("div");
+          t.className = "terr t" + sc.owner[p];
+          cell.appendChild(t);
+        }
+        if (canPlay) { cell.classList.add("open"); cell.onclick = () => humanMove(p); }
+        else cell.tabIndex = -1;
+      }
+      el.appendChild(cell);
+    }
+  }
+
+  const cpu = cpuColor();
+  for (const i of [0, 1]) {
+    paintStone($("mini" + i), i + 1);
+    $("panel" + i).classList.toggle("active", phase === "play" && G.turn === i + 1);
+    $("clear" + i).hidden = !players[i].img;
+    $("who" + i).textContent = SIDE[i] + (cpu ? (cpu === i + 1 ? ", computer" : ", you") : "");
+    $("num" + i).textContent = sc ? (i === 0 ? sc.black : sc.white) : caps[i];
+    $("lab" + i).textContent = sc ? (i === 0 ? "points" : "points with komi") : "captures";
+  }
+
+  const status = $("status");
+  status.textContent = "";
+  let sub = notice;
+  if (sc) {
+    const diff = sc.black - sc.white;
+    status.textContent = nameOf(diff > 0 ? BLACK : WHITE) + " wins by " + Math.abs(diff) + ".";
+    sub = "Faded stones are counted as dead. Tap a group to change that, or undo to keep playing.";
+  } else if (thinking) {
+    status.textContent = nameOf(G.turn) + " is thinking";
+  } else {
+    status.textContent = nameOf(G.turn) + " to move";
+  }
+  if (sub) {
+    const n = document.createElement("small");
+    n.textContent = sub;
+    status.appendChild(n);
+  }
+  $("pass").disabled = !canPlay;
+  $("undo").disabled = !undoStack.length;
+}
+
+function setupPlayer(i) {
+  const sel = $("sel" + i);
+  for (const name of Object.keys(AIS)) {
+    const o = document.createElement("option");
+    o.value = name;
+    o.textContent = AIS[name] + "  " + name;
+    sel.appendChild(o);
+  }
+  sel.value = players[i].name;
+  sel.onchange = () => {
+    const other = 1 - i;
+    const previous = players[i].name;
+    players[i].name = sel.value;
+    // Both sides picking the same AI: move the other side onto the old pick.
+    if (players[other].name === sel.value) {
+      players[other].name = previous;
+      $("sel" + other).value = previous;
+    }
+    draw();
+  };
+  $("file" + i).onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { players[i].img = reader.result; draw(); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+  $("clear" + i).onclick = () => { players[i].img = null; draw(); };
+}
+
+setupPlayer(0);
+setupPlayer(1);
+$("mode").onchange = startGame;
+$("size").onchange = startGame;
+$("cpuSeat").onchange = startGame;
+$("pass").onclick = () => passTurn(false);
+$("undo").onclick = undoMove;
+$("new").onclick = startGame;
+startGame();
+</script>
+</body>
+</html>
